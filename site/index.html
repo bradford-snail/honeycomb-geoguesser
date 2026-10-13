@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pin It</title>
+<title>Honeycomb Geoguesser</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
 <main id="home" class="wrap">
   <div class="hero">
     <div>
-      <h1 class="title"><span id="gameTitle">Pin It</span><span class="dot" aria-hidden="true"></span></h1>
+      <h1 class="title"><span id="Honeycomb Geoguesser">Pin It</span><span class="dot" aria-hidden="true"></span></h1>
       <p class="lede">A screenshot flashes for less than a second. Find the spot on the map before time runs out. Closer guesses earn more points.</p>
       <div class="namefield">
         <label for="nameInput">Your name on the leaderboard</label>
@@ -120,7 +120,7 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
   ]);
   settings=s;
   savedName=me?.name||''; $('nameInput').value=savedName;
-  const title=settings?.title||'Pin It'; $('gameTitle').textContent=title; document.title=title;
+  const title=settings?.title||'Honeycomb Geoguesser'; $('gameTitle').textContent=title; document.title=title;
   const ready=settings&&settings.map_path&&count>0;
   $('playBtn').disabled=!ready;
   $('homeStatus').textContent=ready
