@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pin It</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- HOME -->
+<main id="home" class="wrap">
+  <div class="hero">
+    <div>
+      <h1 class="title"><span id="gameTitle">Pin It</span><span class="dot" aria-hidden="true"></span></h1>
+      <p class="lede">A screenshot flashes for less than a second. Find the spot on the map before time runs out. Closer guesses earn more points.</p>
+      <div class="namefield">
+        <label for="nameInput">Your name on the leaderboard</label>
+        <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="Enter a name">
+      </div>
+      <div class="actions">
+        <button class="btn" id="playBtn" disabled>Play</button>
+      </div>
+      <p class="status" id="homeStatus">Connecting…</p>
+    </div>
+    <section class="board" aria-labelledby="lbTitle">
+      <h2 id="lbTitle">Leaderboard</h2>
+      <ol class="lb"></ol>
+      <p class="empty lb-empty">No scores yet. Be the first.</p>
+    </section>
+  </div>
+</main>
+
+<!-- PLAY -->
+<section id="play" class="hidden" aria-label="Game">
+  <div class="shot"><img id="shotImg" class="gone" alt="Screenshot of the location to find"></div>
+  <div class="cue" id="cue"><div class="n" id="cueN"></div><p id="cueText"></p></div>
+  <div class="hud">
+    <div class="chip" id="roundChip">Round 1 <span>/ 5</span></div>
+    <div class="chip timer hidden" id="timerChip">30<span>s</span></div>
+    <div class="chip" id="scoreChip">0 <span>pts</span></div>
+    <button class="quit" id="quitBtn">Quit</button>
+  </div>
+  <div class="guesser away" id="guesser">
+    <div id="guessMap"></div>
+    <button class="btn map-toggle" id="mapToggle">Open map</button>
+    <button class="btn guess-btn" id="guessBtn" disabled>Place a pin on the map</button>
+  </div>
+
+  <div class="result hidden" id="result">
+    <div id="resultMap"></div>
+    <div class="result-bar">
+      <div class="big" id="roundPts">0<small>pts</small></div>
+      <div class="meter">
+        <div class="meter-track"><div class="meter-fill" id="meterFill"></div></div>
+        <p id="distText"></p>
+      </div>
+      <button class="btn" id="nextBtn">Next round</button>
+    </div>
+  </div>
+
+  <div class="final hidden" id="final">
+    <div class="wrap">
+      <div class="final-grid">
+        <div>
+          <p class="muted" style="margin:0">Final score</p>
+          <div class="big" id="finalPts">0</div>
+          <p class="rank" id="rankText"></p>
+          <p id="finalNote" class="muted"></p>
+          <ul class="rounds" id="roundList"></ul>
+          <div class="actions">
+            <button class="btn" id="againBtn">Play again</button>
+            <button class="btn ghost" id="homeBtn">Home</button>
+          </div>
+        </div>
+        <section class="board" aria-label="Leaderboard">
+          <h2>Leaderboard</h2>
+          <ol class="lb"></ol>
+          <p class="empty lb-empty">No scores yet.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="mapview.js"></script>
+<script>
+const C=window.PINIT_CONFIG||{};
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString();
+let sb=null, settings=null, uid=null, savedName='', board=[], game=null;
+const pub=p=>sb.storage.from('pinit').getPublicUrl(p).data.publicUrl;
+
+function toast(msg){const t=$('toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.add('hidden'),3200)}
+function show(v){$('home').classList.toggle('hidden',v!=='home'); $('play').classList.toggle('hidden',v!=='play'); window.scrollTo(0,0)}
+const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
+
+/* ---------------- Boot ---------------- */
+(async function boot(){
+  if(!C.supabaseUrl||C.supabaseUrl.includes('YOUR-')){ $('homeStatus').textContent='Setup needed: config.js is missing your Supabase details.'; return }
+  sb=supabase.createClient(C.supabaseUrl,C.supabaseAnonKey);
+  try{
+    let {data:{session}}=await sb.auth.getSession();
+    if(!session){ const {data,error}=await sb.auth.signInAnonymously(); if(error) throw error; session=data.session }
+    uid=session.user.id;
+  }catch(e){ console.error(e); $('homeStatus').textContent='Couldn’t connect to the game server. Refresh to try again.'; return }
+
+  const [{data:s},{data:me},{data:count}]=await Promise.all([
+    sb.from('settings').select('*').eq('id',1).single(),
+    sb.from('players').select('name').eq('id',uid).maybeSingle(),
+    sb.rpc('location_count')
+  ]);
+  settings=s;
+  savedName=me?.name||''; $('nameInput').value=savedName;
+  const title=settings?.title||'Pin It'; $('gameTitle').textContent=title; document.title=title;
+  const ready=settings&&settings.map_path&&count>0;
+  $('playBtn').disabled=!ready;
+  $('homeStatus').textContent=ready
+    ? `${settings.rounds} rounds${settings.timer?`, ${settings.timer} seconds each`:''}.`
+    : 'This game isn’t ready yet. Check back soon.';
+
+  loadBoard();
+  let deb; sb.channel('leaderboard')
+    .on('postgres_changes',{event:'*',schema:'public',table:'players'},()=>{clearTimeout(deb); deb=setTimeout(loadBoard,300)})
+    .subscribe();
+})();
+
+/* ---------------- Leaderboard (live) ---------------- */
+async function loadBoard(){
+  const {data,error}=await sb.from('players').select('id,name,best').gt('best',0).order('best',{ascending:false}).limit(20);
+  if(error) return;
+  board=data||[];
+  document.querySelectorAll('.lb').forEach(ol=>{
+    ol.innerHTML='';
+    for(const p of board){
+      const li=document.createElement('li'); if(p.id===uid) li.className='me';
+      const w=document.createElement('span'); w.className='who'; w.textContent=p.name+(p.id===uid?' (you)':'');
+      const n=document.createElement('span'); n.className='pts'; n.textContent=fmt(p.best);
+      li.append(w,n); ol.appendChild(li);
+    }
+  });
+  document.querySelectorAll('.lb-empty').forEach(e=>e.classList.toggle('hidden',board.length>0));
+}
+
+/* ---------------- Game ---------------- */
+let guessMap=null, resultMap=null, roundToken=0, timerInt=null, timerEnd=0;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function stopTimer(){clearInterval(timerInt); timerInt=null}
+function cue(n,text){$('cueN').textContent=n; $('cueText').textContent=text; $('cue').classList.remove('hidden')}
+
+$('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter') startGame()});
+$('playBtn').onclick=startGame;
+$('againBtn').onclick=startGame;
+
+async function startGame(){
+  const name=$('nameInput').value.trim();
+  if(!name){ show('home'); $('nameInput').focus(); $('homeStatus').textContent='Enter a name to play.'; return }
+  $('playBtn').disabled=true; $('againBtn').disabled=true;
+  try{
+    if(name!==savedName){ const {error}=await sb.rpc('set_player_name',{p_name:name}); if(error) throw error; savedName=name }
+    const {data,error}=await sb.rpc('start_game'); if(error) throw error;
+    game={id:data.game_id, n:data.total_rounds, i:0, total:0, results:[], guess:null, locked:true};
+  }catch(e){ toast(errMsg(e)); $('playBtn').disabled=false; $('againBtn').disabled=false; return }
+  $('playBtn').disabled=false; $('againBtn').disabled=false;
+  show('play'); $('final').classList.add('hidden');
+  if(!guessMap){
+    guessMap=new MapView($('guessMap'),{pickable:true,onPick:(x,y)=>{
+      if(!game||game.locked) return;
+      game.guess={x,y}; guessMap.setMarkers([{x,y,kind:'guess'}]);
+      $('guessBtn').disabled=false; $('guessBtn').textContent='Guess';
+    }});
+    resultMap=new MapView($('resultMap'));
+  }
+  loadRound();
+}
+
+async function loadRound(){
+  const token=++roundToken; game.guess=null; game.locked=true; stopTimer();
+  $('result').classList.add('hidden');
+  const shot=$('shotImg'); shot.classList.add('gone'); shot.removeAttribute('src');
+  $('guesser').classList.add('away'); $('guesser').classList.remove('pinned','open');
+  $('timerChip').classList.add('hidden');
+  $('roundChip').innerHTML=`Round ${game.i+1} <span>/ ${game.n}</span>`;
+  $('scoreChip').innerHTML=`${fmt(game.total)} <span>pts</span>`;
+  $('guessBtn').disabled=true; $('guessBtn').textContent='Place a pin on the map';
+  guessMap.setImage(pub(settings.map_path),settings.map_w,settings.map_h);
+  guessMap.setMarkers([]); guessMap.setPickable(false);
+
+  cue('','Loading…');
+  const {data,error}=await sb.rpc('begin_round',{p_game:game.id});
+  if(token!==roundToken) return;
+  if(error){ toast(errMsg(error)); quitGame(); return }
+  game.shot=pub(data.shot_path);
+  const pre=new Image(); pre.src=game.shot;
+  try{await pre.decode()}catch{}
+  for(const n of [3,2,1]){ if(token!==roundToken) return; cue(n,'Watch closely'); await sleep(650) }
+  if(token!==roundToken) return;
+  $('cue').classList.add('hidden');
+  shot.src=pre.src; shot.classList.remove('gone');
+  await sleep(Math.min(950,settings.flash_ms||750));
+  if(token!==roundToken) return;
+  shot.classList.add('gone'); shot.removeAttribute('src');
+  cue('','Where was that? Pin it on the map.');
+
+  game.locked=false; guessMap.setPickable(true);
+  const g=$('guesser'); g.classList.remove('away'); g.classList.add('pinned','open');
+  $('mapToggle').textContent='Hide map';
+  setTimeout(()=>guessMap._resize(),0);
+  if(settings.timer>0){
+    timerEnd=Date.now()+settings.timer*1000; $('timerChip').classList.remove('hidden'); tick();
+    timerInt=setInterval(tick,100);
+  }
+}
+function tick(){
+  const left=Math.max(0,timerEnd-Date.now()), sec=Math.ceil(left/1000), c=$('timerChip');
+  c.innerHTML=`${sec}<span>s</span>`; c.classList.toggle('low',sec<=5);
+  if(left<=0){stopTimer(); submitGuess(true)}
+}
+$('mapToggle').onclick=()=>{const g=$('guesser'); g.classList.toggle('open'); $('mapToggle').textContent=g.classList.contains('open')?'Hide map':'Open map'; setTimeout(()=>guessMap._resize(),0)};
+$('guessBtn').onclick=()=>submitGuess(false);
+document.addEventListener('keydown',e=>{
+  if($('play').classList.contains('hidden')||!game||!(e.key==='Enter'||e.key===' ')) return;
+  if(!$('result').classList.contains('hidden')&&$('final').classList.contains('hidden')){e.preventDefault(); $('nextBtn').click()}
+  else if(game.guess&&!game.locked&&$('result').classList.contains('hidden')){e.preventDefault(); submitGuess(false)}
+});
+
+function distLabel(r){
+  if(settings.scale_width>0){
+    const v=r.px/settings.map_w*settings.scale_width, unit=(settings.scale_unit||'m').trim();
+    if(unit==='m'&&v>=1000) return `${(v/1000).toFixed(v<10000?2:1)} km off`;
+    return `${v<10?v.toFixed(1):fmt(v)} ${unit} off`;
+  }
+  return `${(r.d*100).toFixed(1)}% of the map away`;
+}
+
+async function submitGuess(timedOut){
+  if(!game||game.locked) return;
+  if(!game.guess&&!timedOut) return;
+  stopTimer(); game.locked=true; guessMap.setPickable(false);
+  $('guessBtn').disabled=true; $('guessBtn').textContent='Checking…';
+  const token=roundToken;
+  const {data,error}=await sb.rpc('submit_guess',{p_game:game.id,p_x:game.guess?game.guess.x:null,p_y:game.guess?game.guess.y:null});
+  if(token!==roundToken) return;
+  if(error){ toast('Your guess couldn’t be sent. Check your connection and try again.'); game.locked=false; guessMap.setPickable(true); $('guessBtn').disabled=!game.guess; $('guessBtn').textContent='Guess'; return }
+
+  $('cue').classList.add('hidden');
+  const actual=data.actual_x!=null?{x:data.actual_x,y:data.actual_y}:null;
+  const missed=!game.guess||data.late;
+  const px=(game.guess&&actual)?Math.hypot((game.guess.x-actual.x)*settings.map_w,(game.guess.y-actual.y)*settings.map_h):0;
+  const r={pts:data.points,d:data.d||0,px,missed,late:data.late,shot:game.shot};
+  game.total=data.total; game.finished=data.finished; game.results.push(r);
+
+  $('scoreChip').innerHTML=`${fmt(game.total)} <span>pts</span>`;
+  $('result').classList.remove('hidden');
+  $('roundPts').innerHTML=`${fmt(r.pts)}<small>pts</small>`;
+  $('distText').textContent=!game.guess?'Time’s up. No pin placed.'
+    : data.late?'Time ran out before your guess arrived.'
+    : (timedOut?'Time’s up. Your pin was locked in: ':'')+(r.pts===5000?'Spot on. Perfect score.':distLabel(r));
+  const fill=$('meterFill'); fill.style.width='0';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>fill.style.width=(r.pts/50)+'%'));
+  $('nextBtn').textContent=game.finished?'See final score':'Next round';
+  resultMap.setImage(pub(settings.map_path),settings.map_w,settings.map_h);
+  const pts=[];
+  if(game.guess) pts.push(game.guess);
+  if(actual) pts.push(actual);
+  resultMap.setMarkers([...(game.guess?[{...game.guess,kind:'guess'}]:[]),...(actual?[{...actual,kind:'actual'}]:[])], game.guess&&actual?[game.guess,actual]:null);
+  requestAnimationFrame(()=>resultMap.fitTo(pts,pts.length>1?90:200));
+  $('nextBtn').focus();
+}
+$('nextBtn').onclick=()=>{ if(!game.finished){game.i++; loadRound()} else finishGame() };
+
+function quitGame(){roundToken++; stopTimer(); game=null; show('home')}
+$('quitBtn').onclick=()=>{ if(game&&game.results.length&&!game.finished&&!confirm('Quit this game? This score won’t count.')) return; quitGame() };
+$('homeBtn').onclick=quitGame;
+
+async function finishGame(){
+  $('final').classList.remove('hidden');
+  $('finalPts').innerHTML=`${fmt(game.total)}<small>/ ${fmt(game.n*5000)}</small>`;
+  const ul=$('roundList'); ul.innerHTML='';
+  game.results.forEach((r,i)=>{
+    const li=document.createElement('li'), im=document.createElement('img'); im.src=r.shot; im.alt='';
+    const t=document.createElement('span'); t.textContent=`Round ${i+1}: ${r.missed?'no points':r.pts===5000?'perfect':distLabel(r)}`;
+    const p=document.createElement('span'); p.className='pts'; p.textContent=fmt(r.pts);
+    li.append(im,t,p); ul.appendChild(li);
+  });
+  $('rankText').textContent=''; $('finalNote').textContent='';
+  const {data:me}=await sb.from('players').select('best').eq('id',uid).single();
+  if(!me) return;
+  const {count}=await sb.from('players').select('id',{count:'exact',head:true}).gt('best',me.best);
+  $('rankText').textContent=`You’re #${(count||0)+1} on the leaderboard.`;
+  $('finalNote').textContent=game.total>=me.best&&game.total>0?'This is your best score.':`Your best is ${fmt(me.best)}.`;
+  loadBoard();
+}
+</script>
+</body>
+</html>

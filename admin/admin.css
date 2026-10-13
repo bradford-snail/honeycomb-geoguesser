@@ -1,0 +1,31 @@
+/* Admin-only styles. Loaded after ../site/app.css */
+/* ---------- Admin ---------- */
+.admin-head{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:24px}
+.admin-head h1{margin:0; font-size:clamp(1.8rem,5vw,2.6rem); letter-spacing:-.02em}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:22px; margin-bottom:22px}
+.panel h2{margin:0 0 .3em; font-size:1.25rem}
+.panel > p{margin:0 0 1em; color:var(--muted)}
+.fields{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px}
+label.f{display:flex; flex-direction:column; gap:4px; font-size:.9rem; color:var(--muted)}
+label.f input, label.f select{background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:.55em .7em; color:var(--ink); font-size:1rem}
+.filebtn{position:relative; overflow:hidden; display:inline-flex}
+.filebtn input{position:absolute; inset:0; opacity:0; cursor:pointer}
+.mapthumb{display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:4px}
+.mapthumb img{height:90px; border-radius:10px; border:1px solid var(--line)}
+.addgrid{display:grid; grid-template-columns:260px 1fr; gap:16px}
+@media (max-width:760px){.addgrid{grid-template-columns:1fr}}
+.preview{aspect-ratio:16/10; border-radius:12px; background:var(--bg); border:1.5px dashed var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--muted); text-align:center; padding:8px}
+.preview img{width:100%; height:100%; object-fit:cover}
+.admin-map{height:420px; border-radius:12px}
+.addactions{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:center}
+.locs{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; margin-top:8px}
+.loc{border-radius:12px; overflow:hidden; border:1.5px solid var(--line); background:var(--bg); cursor:pointer; padding:0; text-align:left}
+.loc[aria-pressed="true"]{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent)}
+.loc img{display:block; width:100%; aspect-ratio:16/10; object-fit:cover}
+.loc span{display:block; padding:6px 10px; font-size:.85rem; color:var(--muted)}
+
+.login{max-width:380px; display:flex; flex-direction:column; gap:12px}
+.login label{display:flex; flex-direction:column; gap:4px; font-size:.9rem; color:var(--muted)}
+.login input{background:var(--surface); border:1.5px solid var(--line); border-radius:10px; padding:.6em .8em; font-size:1rem; color:var(--ink)}
+.err{color:var(--danger); margin:0}
+.toplink{color:var(--accent); font-weight:500}
