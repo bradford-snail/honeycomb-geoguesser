@@ -40,6 +40,7 @@
       <div class="mapthumb">
         <img id="mapThumb" class="hidden" alt="Current map">
         <span class="btn filebtn" id="mapUploadBtn"><span id="mapUploadLabel">Upload map image</span><input type="file" id="mapFile" accept="image/png,image/jpeg,image/webp"></span>
+                   <button class="btn danger small hidden" id="removeMap" type="button">Remove map</button>
       </div>
     </section>
 
@@ -147,6 +148,7 @@ async function loadSettings(){
   const has=!!data.map_path;
   $('mapThumb').classList.toggle('hidden',!has); $('addPanel').classList.toggle('hidden',!has);
   $('mapUploadLabel').textContent=has?'Replace map image':'Upload map image';
+       $('removeMap').classList.toggle('hidden',!has);
   if(has){ $('mapThumb').src=pub(data.map_path); adminMap.setImage(pub(data.map_path),data.map_w,data.map_h); setTimeout(()=>adminMap._resize(),0) }
 }
 $('saveSettings').onclick=async()=>{
@@ -180,7 +182,16 @@ $('mapFile').onchange=async e=>{
   }catch(err){ toast(errMsg(err)) }
 };
 
-/* ---------- Locations ---------- */
+   $('removeMap').onclick=async()=>{
+     const n=locations.length;
+     if(!confirm(n?`Remove the map? Your ${n} location${n===1?'':'s'} will stay saved, but the game can't be played until you upload a map again.`:'Remove the map?')) return;
+     const old=settings.map_path;
+     const {error}=await sb.from('settings').update({map_path:null,map_w:null,map_h:null}).eq('id',1);
+     if(error){ toast(errMsg(error)); return }
+     if(old) sb.storage.from('pinit').remove([old]);
+     toast('Map removed'); loadSettings();
+   };
+  /* ---------- Locations ---------- */
 async function loadLocations(){
   const {data}=await sb.from('locations').select('*').order('created_at');
   locations=data||[]; renderLocations();
