@@ -1,0 +1,53 @@
+name: Deploy game to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check repository variables
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Add SUPABASE_URL and SUPABASE_ANON_KEY under Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          fi
+
+      - name: Write config.js
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          printf 'window.PINIT_CONFIG = {\n  supabaseUrl: "%s",\n  supabaseAnonKey: "%s"\n};\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" > site/config.js
+
+      - uses: actions/configure-pages@v5
+
+      # Only the game is published. admin/ and supabase/ are never deployed.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
