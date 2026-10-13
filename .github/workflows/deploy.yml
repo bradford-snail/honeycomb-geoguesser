@@ -22,32 +22,32 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check repository variables
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "::error::Add SUPABASE_URL and SUPABASE_ANON_KEY under Settings > Secrets and variables > Actions > Variables."
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY under Settings > Secrets and variables > Actions > Variables."
             exit 1
           fi
 
       - name: Write config.js
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          printf 'window.PINIT_CONFIG = {\n  supabaseUrl: "%s",\n  supabaseAnonKey: "%s"\n};\n' \
-            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" > site/config.js
+          printf 'window.PINIT_CONFIG = {\n  supabaseUrl: "%s",\n  supabaseKey: "%s"\n};\n' \
+            "$SUPABASE_URL" "$SUPABASE_PUBLISHABLE_KEY" > site/config.js
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
       # Only the game is published. admin/ and supabase/ are never deployed.
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
