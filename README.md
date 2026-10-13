@@ -36,7 +36,9 @@ Players don't need an account; they just enter a name. The game is hosted free o
       ```sql
       insert into public.admins (user_id) values ('PASTE-THE-UID-HERE');
       ```
-5. From **Project Settings > API**, copy the **Project URL** and the **anon public** key. You'll need both in the next steps.
+5. Copy your two connection values. You'll need both in the next steps:
+   - **Project URL:** click **Connect** at the top of the dashboard, or look in **Project Settings > Data API**. It looks like `https://abcdefgh.supabase.co`.
+   - **Publishable key:** go to **Project Settings > API Keys**, open the **Publishable and secret API keys** tab, and copy the key starting with `sb_publishable_`. If you see a **Create new API keys** button there, click it first.
 
 ### 2. Create the GitHub repository
 Create a new repository on GitHub. It needs to be public for GitHub Pages on a free plan. Then push these files to it:
@@ -56,7 +58,7 @@ If you'd rather not use the command line, GitHub Desktop works too. Avoid upload
 ### 3. Connect GitHub to Supabase and turn on Pages
 1. In the repository, go to **Settings > Secrets and variables > Actions > Variables** and add two repository variables:
    - `SUPABASE_URL`: your Project URL
-   - `SUPABASE_ANON_KEY`: your anon public key
+   - `SUPABASE_PUBLISHABLE_KEY`: your publishable key
 2. Go to **Settings > Pages** and set **Source** to **GitHub Actions**.
 3. Go to **Actions > Deploy game to GitHub Pages** and click **Run workflow**. This is only needed the first time; after that, every push to `main` that changes `site/` deploys automatically.
 

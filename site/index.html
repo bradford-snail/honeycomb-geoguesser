@@ -89,7 +89,7 @@
 
 <div class="toast hidden" id="toast" role="status"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script src="mapview.js"></script>
 <script>
@@ -106,7 +106,7 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
 /* ---------------- Boot ---------------- */
 (async function boot(){
   if(!C.supabaseUrl||C.supabaseUrl.includes('YOUR-')){ $('homeStatus').textContent='Setup needed: config.js is missing your Supabase details.'; return }
-  sb=supabase.createClient(C.supabaseUrl,C.supabaseAnonKey);
+  sb=supabase.createClient(C.supabaseUrl,C.supabaseKey||C.supabaseAnonKey);
   try{
     let {data:{session}}=await sb.auth.getSession();
     if(!session){ const {data,error}=await sb.auth.signInAnonymously(); if(error) throw error; session=data.session }
