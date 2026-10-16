@@ -39,7 +39,7 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
   <div class="hero">
     <div>
       <h1 class="sr-only"><span id="gameTitle">Honeycomb Geoguesser</span></h1>
-      <p class="lede">A screenshot flashes on screen. Find the spot on the map before time runs out. Closer guesses earn more points, and faster flashes multiply them.</p>
+      <p class="lede">From lush meadows to deep caverns, how well do you know Sota7? Spot the location, pin it on the map, and beat the clock. Faster flashes, bigger scores.</p>
       <div class="namefield">
         <label for="nameInput">Your leaderboard name (must be unique, special characters welcome)</label>
         <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="Enter a name">
@@ -75,7 +75,7 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
   <div class="guesser away" id="guesser">
     <div id="guessMap"></div>
     <button class="btn map-toggle" id="mapToggle">Open map</button>
-    <button class="btn guess-btn" id="guessBtn" disabled>Place a pin on the map</button>
+    <button class="btn guess-btn" id="guessBtn" disabled>Pin it on Sota7</button>
   </div>
 
   <div class="result hidden" id="result">
@@ -94,7 +94,7 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
     <div class="wrap">
       <div class="final-grid">
         <div>
-          <p class="muted" style="margin:0">Final score</p>
+          <p class="muted" style="margin:0">Expedition Complete!</p>
           <div class="big" id="finalPts">0</div>
           <p class="rank" id="rankText"></p>
           <p id="finalNote" class="muted"></p>
@@ -293,7 +293,7 @@ async function loadRound(){
   game.shot=pub(data.shot_path);
   const pre=new Image(); pre.src=game.shot;
   try{await pre.decode()}catch{}
-  for(const n of [3,2,1]){ if(token!==roundToken) return; cue(n,'Watch closely'); await sleep(650) }
+  for(const n of [3,2,1]){ if(token!==roundToken) return; cue(n,'Scanning Sota7…'); await sleep(650) }
   if(token!==roundToken) return;
   $('cue').classList.add('hidden');
   shot.src=pre.src; shot.classList.remove('gone');
