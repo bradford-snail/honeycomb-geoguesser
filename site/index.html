@@ -139,6 +139,7 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
   sb=supabase.createClient(C.supabaseUrl,C.supabaseKey||C.supabaseAnonKey);
   try{
     let {data:{session}}=await sb.auth.getSession();
+    if(session){ const {error:ue}=await sb.auth.getUser(); if(ue){ await sb.auth.signOut({scope:'local'}); session=null } }
     if(!session){ const {data,error}=await sb.auth.signInAnonymously(); if(error) throw error; session=data.session }
     uid=session.user.id;
   }catch(e){ console.error(e); $('homeStatus').textContent='Couldn’t connect to the game server. Refresh to try again.'; return }
