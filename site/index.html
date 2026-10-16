@@ -24,15 +24,19 @@
 .lb-tab[aria-selected="true"]{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
 .board li.outside{grid-template-columns:auto 1fr auto; border-top:1px dashed var(--line); margin-top:.4em; padding-top:.7em}
 .board li.outside::before{content:attr(data-rank)}
+.brand{display:flex; justify-content:center; margin:0 0 clamp(24px,4vw,44px)}
+.brand img{display:block; width:auto; height:auto; max-width:min(560px, 90%); max-height:180px}
+.sr-only{position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
 </style>
 </head>
 <body>
 
 <!-- HOME -->
 <main id="home" class="wrap">
+  <header class="brand"><img src="logo.png" alt="Honeycomb Geoguesser"></header>
   <div class="hero">
     <div>
-      <h1 class="title"><span id="gameTitle">Honeycomb Geoguesser</span><span class="dot" aria-hidden="true"></span></h1>
+      <h1 class="sr-only"><span id="gameTitle">Honeycomb Geoguesser</span></h1>
       <p class="lede">A screenshot flashes on screen. Find the spot on the map before time runs out. Closer guesses earn more points, and faster flashes multiply them.</p>
       <div class="namefield">
         <label for="nameInput">Your leaderboard name (must be unique, special characters welcome)</label>
