@@ -4,12 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Manage game · Pin It</title>
+<title>Manage game · Honeycomb Geoguesser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site/app.css">
 <link rel="stylesheet" href="admin.css">
+<style>
+.mode-row{display:grid; grid-template-columns:minmax(120px,1.4fr) minmax(90px,1fr) minmax(90px,1fr) auto; gap:10px; align-items:end; padding:10px 0; border-top:1px solid var(--line)}
+.mode-row:first-child{border-top:0}
+@media (max-width:560px){.mode-row{grid-template-columns:1fr 1fr}}
+</style>
 </head>
 <body>
 <main class="wrap">
@@ -28,6 +33,7 @@
     <form class="login" id="loginForm">
       <label>Email<input type="email" id="email" autocomplete="username" required></label>
       <label>Password<input type="password" id="password" autocomplete="current-password" required></label>
+      <p class="muted" id="projInfo" style="font-size:.85rem;margin:0"></p>
       <p class="err hidden" id="loginErr"></p>
       <div><button class="btn" type="submit" id="loginBtn">Sign in</button></div>
     </form>
@@ -40,14 +46,14 @@
       <div class="mapthumb">
         <img id="mapThumb" class="hidden" alt="Current map">
         <span class="btn filebtn" id="mapUploadBtn"><span id="mapUploadLabel">Upload map image</span><input type="file" id="mapFile" accept="image/png,image/jpeg,image/webp"></span>
-                   <button class="btn danger small hidden" id="removeMap" type="button">Remove map</button>
+        <button class="btn danger small hidden" id="removeMap" type="button">Remove map</button>
       </div>
     </section>
 
     <section class="panel">
       <h2>Settings</h2>
       <div class="fields">
-        <label class="f">Game title<input id="setTitle" maxlength="40" placeholder="Pin It"></label>
+        <label class="f">Game title<input id="setTitle" maxlength="40" placeholder="Honeycomb Geoguesser"></label>
         <label class="f">Rounds per game<input id="setRounds" type="number" min="1" max="20" value="5"></label>
         <label class="f">Scoring
           <select id="setStrict"><option value="easy">Forgiving</option><option value="normal">Normal</option><option value="hard">Strict</option></select>
@@ -55,13 +61,20 @@
         <label class="f">Round timer
           <select id="setTimer"><option value="0">Off</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option><option value="90">90 seconds</option></select>
         </label>
-        <label class="f">Screenshot shown for
-          <select id="setFlash"><option value="250">0.25 seconds</option><option value="500">0.5 seconds</option><option value="750">0.75 seconds</option><option value="900">0.9 seconds</option></select>
-        </label>
         <label class="f">Map width (optional)<input id="setScale" type="number" min="0" step="any" placeholder="e.g. 8000"></label>
         <label class="f">Distance unit<input id="setUnit" maxlength="12" placeholder="m"></label>
       </div>
       <div class="addactions"><button class="btn" id="saveSettings">Save settings</button><span class="muted" style="font-size:.9rem">Map width lets players see real distances, like “320 m off”.</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>Screenshot speeds</h2>
+      <p>Players pick one before each game. Faster speeds should get bigger point multipliers. You can have up to 5.</p>
+      <div id="modeRows"></div>
+      <div class="addactions">
+        <button class="btn ghost small" id="addMode" type="button">Add speed</button>
+        <button class="btn" id="saveModes" type="button">Save speeds</button>
+      </div>
     </section>
 
     <section class="panel" id="addPanel">
@@ -116,6 +129,7 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
 (async function boot(){
   if(!C.supabaseUrl||C.supabaseUrl.includes('YOUR-')){ $('loginPanel').innerHTML='<h2>Setup needed</h2><p>Copy <code>site/config.example.js</code> to <code>site/config.js</code> and add your Supabase URL and publishable key.</p>'; return }
   sb=supabase.createClient(C.supabaseUrl,C.supabaseKey||C.supabaseAnonKey);
+  $('projInfo').textContent='Connecting to '+C.supabaseUrl;
   const {data:{session}}=await sb.auth.getSession();
   if(session&&!session.user.is_anonymous) enter();
 })();
@@ -124,7 +138,16 @@ $('loginForm').onsubmit=async e=>{
   e.preventDefault(); $('loginErr').classList.add('hidden'); $('loginBtn').disabled=true;
   const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
   $('loginBtn').disabled=false;
-  if(error){ $('loginErr').textContent='That email and password don’t match an account.'; $('loginErr').classList.remove('hidden'); return }
+  if(error){
+    const m=(error.message||'').toLowerCase();
+    let msg;
+    if(m.includes('invalid login credentials')) msg='Supabase says this email and password don’t match. Check for typos and extra spaces, and that you created this user in the same project as the URL in config.js.';
+    else if(m.includes('email not confirmed')) msg='This account hasn’t been confirmed. In Supabase, delete the user and create it again with “Auto Confirm User” checked.';
+    else if(m.includes('api key')||m.includes('apikey')) msg='Supabase rejected the key in site/config.js. Copy the publishable key (starts with sb_publishable_) again.';
+    else if(m.includes('fetch')||m.includes('network')) msg='Couldn’t reach Supabase. Check the Project URL in site/config.js, and that you’re online.';
+    else msg='Sign-in failed.';
+    $('loginErr').textContent=msg+' (Details: '+(error.message||'unknown error')+')';
+    $('loginErr').classList.remove('hidden'); return }
   enter();
 };
 $('signOut').onclick=async()=>{ await sb.auth.signOut(); location.reload() };
@@ -143,21 +166,21 @@ async function loadSettings(){
   const {data}=await sb.from('settings').select('*').eq('id',1).single();
   settings=data;
   $('setTitle').value=data.title||''; $('setRounds').value=data.rounds; $('setStrict').value=data.strict;
-  $('setTimer').value=String(data.timer); $('setFlash').value=String(data.flash_ms);
+  $('setTimer').value=String(data.timer);
+  modes=(data.modes||[]).map(m=>({...m})); renderModes();
   $('setScale').value=data.scale_width||''; $('setUnit').value=data.scale_unit||'';
   const has=!!data.map_path;
   $('mapThumb').classList.toggle('hidden',!has); $('addPanel').classList.toggle('hidden',!has);
   $('mapUploadLabel').textContent=has?'Replace map image':'Upload map image';
-       $('removeMap').classList.toggle('hidden',!has);
+  $('removeMap').classList.toggle('hidden',!has);
   if(has){ $('mapThumb').src=pub(data.map_path); adminMap.setImage(pub(data.map_path),data.map_w,data.map_h); setTimeout(()=>adminMap._resize(),0) }
 }
 $('saveSettings').onclick=async()=>{
   const {error}=await sb.from('settings').update({
-    title:$('setTitle').value.trim()||'Pin It',
+    title:$('setTitle').value.trim()||'Honeycomb Geoguesser',
     rounds:Math.max(1,Math.min(20,parseInt($('setRounds').value)||5)),
     strict:$('setStrict').value,
     timer:parseInt($('setTimer').value)||0,
-    flash_ms:parseInt($('setFlash').value)||750,
     scale_width:Math.max(0,parseFloat($('setScale').value)||0),
     scale_unit:$('setUnit').value.trim()
   }).eq('id',1);
@@ -182,16 +205,49 @@ $('mapFile').onchange=async e=>{
   }catch(err){ toast(errMsg(err)) }
 };
 
-   $('removeMap').onclick=async()=>{
-     const n=locations.length;
-     if(!confirm(n?`Remove the map? Your ${n} location${n===1?'':'s'} will stay saved, but the game can't be played until you upload a map again.`:'Remove the map?')) return;
-     const old=settings.map_path;
-     const {error}=await sb.from('settings').update({map_path:null,map_w:null,map_h:null}).eq('id',1);
-     if(error){ toast(errMsg(error)); return }
-     if(old) sb.storage.from('pinit').remove([old]);
-     toast('Map removed'); loadSettings();
-   };
-  /* ---------- Locations ---------- */
+$('removeMap').onclick=async()=>{
+  const n=locations.length;
+  if(!confirm(n?`Remove the map? Your ${n} location${n===1?'':'s'} will stay saved, but the game can't be played until you upload a map again.`:'Remove the map?')) return;
+  const old=settings.map_path;
+  const {error}=await sb.from('settings').update({map_path:null,map_w:null,map_h:null}).eq('id',1);
+  if(error){ toast(errMsg(error)); return }
+  if(old) sb.storage.from('pinit').remove([old]);
+  toast('Map removed'); loadSettings();
+};
+
+/* ---------- Screenshot speeds ---------- */
+let modes=[];
+function renderModes(){
+  const box=$('modeRows'); box.innerHTML='';
+  modes.forEach((m,i)=>{
+    const row=document.createElement('div'); row.className='mode-row';
+    const field=(label,val,attrs)=>{const l=document.createElement('label'); l.className='f'; l.textContent=label;
+      const inp=document.createElement('input'); Object.assign(inp,attrs); inp.value=val; l.appendChild(inp); row.appendChild(l); return inp};
+    const name=field('Name',m.label,{maxLength:20});
+    const sec=field('Shown for (seconds)',m.ms/1000,{type:'number',min:0.1,max:10,step:0.05});
+    const mult=field('Points ×',m.mult,{type:'number',min:0.1,max:10,step:0.05});
+    name.oninput=()=>m.label=name.value; sec.oninput=()=>m.ms=Math.round(parseFloat(sec.value)*1000);
+    mult.oninput=()=>m.mult=parseFloat(mult.value);
+    const del=document.createElement('button'); del.type='button'; del.className='btn danger small'; del.textContent='Remove';
+    del.disabled=modes.length<=1; del.onclick=()=>{modes.splice(i,1); renderModes()};
+    row.appendChild(del); box.appendChild(row);
+  });
+  $('addMode').disabled=modes.length>=5;
+}
+$('addMode').onclick=()=>{ if(modes.length>=5) return; modes.push({id:'speed-'+Date.now(),label:'New speed',ms:1000,mult:1}); renderModes() };
+$('saveModes').onclick=async()=>{
+  for(const m of modes){
+    m.label=(m.label||'').trim();
+    if(!m.label) return toast('Every speed needs a name.');
+    if(!(m.ms>=100&&m.ms<=10000)) return toast(`“${m.label}”: shown-for time must be between 0.1 and 10 seconds.`);
+    if(!(m.mult>=0.1&&m.mult<=10)) return toast(`“${m.label}”: points multiplier must be between 0.1 and 10.`);
+  }
+  const clean=[...modes].sort((a,b)=>a.ms-b.ms).map(m=>({id:m.id,label:m.label,ms:m.ms,mult:m.mult}));
+  const {error}=await sb.from('settings').update({modes:clean}).eq('id',1);
+  if(error) toast(errMsg(error)); else { toast('Speeds saved'); loadSettings() }
+};
+
+/* ---------- Locations ---------- */
 async function loadLocations(){
   const {data}=await sb.from('locations').select('*').order('created_at');
   locations=data||[]; renderLocations();
