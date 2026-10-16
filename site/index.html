@@ -156,7 +156,8 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
   renderModes();
   if(modes.length>1&&modeId) boardTab=modeId;
   const ready=settings&&settings.map_path&&count>0&&modes.length>0;
-  $('playBtn').disabled=!ready;
+  $('playBtn').disabled=!ready;  
+  if(settings?.map_path){ const pre=new Image(); pre.src=pub(settings.map_path); }
   $('homeStatus').textContent=ready
     ? `${settings.rounds} rounds${settings.timer?`, ${settings.timer} seconds each`:''}.`
     : 'This game isn’t ready yet. Check back soon.';
