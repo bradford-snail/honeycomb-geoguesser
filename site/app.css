@@ -83,17 +83,12 @@ img{max-width:100%}
 .guesser.away{visibility:hidden}
 .quit{background:rgba(10,16,20,.72); color:#fff; border:0; border-radius:999px; padding:.4em 1em; cursor:pointer; font-weight:500}
 
-.guesser{position:absolute; right:16px; bottom:calc(16px + env(safe-area-inset-bottom,0px)); display:flex; flex-direction:column; gap:10px; align-items:stretch; width:340px; z-index:3}
-.guesser .mv{width:100%; height:230px; border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.5); opacity:.85; transition:height .25s ease, opacity .2s}
-@media (hover:hover) and (pointer:fine){
-  .guesser{transition:width .25s ease}
-  .guesser:hover, .guesser.pinned{width:min(620px, calc(100vw - 32px))}
-  .guesser:hover .mv, .guesser.pinned .mv{height:min(440px, calc(100vh - 160px)); opacity:1}
-}
+.guesser{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; flex-direction:column; gap:10px; align-items:stretch; width:min(900px, calc(100vw - 32px)); z-index:3}
+.guesser .mv{width:100%; height:min(600px, calc(100vh - 220px)); border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.5)}
 .guess-btn{width:100%; padding:.85em; font-size:1.05rem; background:var(--pin); color:#0A1014}
 .map-toggle{display:none}
 @media (hover:none), (pointer:coarse){
-  .guesser{left:12px; right:12px; width:auto; bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .guesser{left:12px; right:12px; width:auto; top:auto; transform:none; bottom:calc(12px + env(safe-area-inset-bottom,0px))}
   .guesser .mv{display:none; height:min(60vh, 460px); opacity:1}
   .guesser.open .mv{display:block}
   .map-toggle{display:block; background:rgba(10,16,20,.82); color:#fff; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.25)}
@@ -108,7 +103,7 @@ img{max-width:100%}
 .meter{flex:1 1 220px; min-width:180px}
 .meter-track{height:10px; border-radius:999px; background:var(--line); overflow:hidden}
 .meter-fill{height:100%; width:0; background:var(--pin); border-radius:999px; transition:width .9s cubic-bezier(.2,.8,.2,1)}
-@media (prefers-reduced-motion:reduce){.meter-fill,.guesser,.guesser .mv{transition:none}}
+@media (prefers-reduced-motion:reduce){.meter-fill{transition:none}}
 .meter p{margin:.4em 0 0; color:var(--muted)}
 
 /* final */
