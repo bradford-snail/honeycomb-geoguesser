@@ -9,6 +9,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
+<style>
+.modes{border:0; padding:0; margin:0 0 18px; min-width:0}
+.modes legend{font-size:.9rem; color:var(--muted); margin-bottom:6px; padding:0}
+.mode-list{display:flex; flex-wrap:wrap; gap:8px}
+.mode{appearance:none; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:12px; padding:.5em .9em; cursor:pointer; text-align:left; min-width:96px; font:inherit}
+.mode b{display:block; font-weight:700}
+.mode span{display:block; font-size:.85rem; color:var(--muted)}
+.mode .x{color:var(--accent); font-weight:700}
+.mode[aria-pressed="true"]{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent)}
+.base-note{display:block; font-size:.9rem}
+</style>
 </head>
 <body>
 
@@ -16,12 +27,16 @@
 <main id="home" class="wrap">
   <div class="hero">
     <div>
-         <h1 class="title"><span id="gameTitle">Honeycomb Geoguesser</span><span class="dot" aria-hidden="true"></span></h1>
-      <p class="lede">A screenshot flashes for less than a second. Find the spot on the map before time runs out. Closer guesses earn more points.</p>
+      <h1 class="title"><span id="gameTitle">Honeycomb Geoguesser</span><span class="dot" aria-hidden="true"></span></h1>
+      <p class="lede">A screenshot flashes on screen. Find the spot on the map before time runs out. Closer guesses earn more points, and faster flashes multiply them.</p>
       <div class="namefield">
         <label for="nameInput">Your name on the leaderboard</label>
         <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="Enter a name">
       </div>
+      <fieldset class="modes hidden" id="modePicker">
+        <legend>Screenshot speed</legend>
+        <div class="mode-list" id="modeList"></div>
+      </fieldset>
       <div class="actions">
         <button class="btn" id="playBtn" disabled>Play</button>
       </div>
@@ -96,7 +111,9 @@
 const C=window.PINIT_CONFIG||{};
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString();
-let sb=null, settings=null, uid=null, savedName='', board=[], game=null;
+let sb=null, settings=null, uid=null, savedName='', board=[], game=null, modes=[], modeId=null;
+const secs=ms=>(ms/1000).toString()+'s';
+const xLabel=m=>'×'+Number(m).toString();
 const pub=p=>sb.storage.from('pinit').getPublicUrl(p).data.publicUrl;
 
 function toast(msg){const t=$('toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.add('hidden'),3200)}
@@ -121,7 +138,9 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
   settings=s;
   savedName=me?.name||''; $('nameInput').value=savedName;
   const title=settings?.title||'Honeycomb Geoguesser'; $('gameTitle').textContent=title; document.title=title;
-  const ready=settings&&settings.map_path&&count>0;
+  modes=Array.isArray(settings?.modes)?[...settings.modes].sort((a,b)=>a.ms-b.ms):[];
+  renderModes();
+  const ready=settings&&settings.map_path&&count>0&&modes.length>0;
   $('playBtn').disabled=!ready;
   $('homeStatus').textContent=ready
     ? `${settings.rounds} rounds${settings.timer?`, ${settings.timer} seconds each`:''}.`
@@ -132,6 +151,24 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
     .on('postgres_changes',{event:'*',schema:'public',table:'players'},()=>{clearTimeout(deb); deb=setTimeout(loadBoard,300)})
     .subscribe();
 })();
+
+/* ---------------- Speed picker ---------------- */
+function renderModes(){
+  let saved=null; try{saved=localStorage.getItem('pinit-mode')}catch{}
+  modeId=modes.find(m=>m.id===modeId)?.id||modes.find(m=>m.id===saved)?.id||modes.find(m=>Number(m.mult)===1)?.id||modes[0]?.id||null;
+  const list=$('modeList'); list.innerHTML='';
+  for(const m of modes){
+    const b=document.createElement('button'); b.type='button'; b.className='mode';
+    b.setAttribute('aria-pressed',String(m.id===modeId));
+    const t=document.createElement('b'); t.textContent=m.label;
+    const d=document.createElement('span'); d.textContent=secs(m.ms)+' · ';
+    const x=document.createElement('span'); x.className='x'; x.style.display='inline'; x.textContent=xLabel(m.mult)+' points';
+    d.appendChild(x); b.append(t,d);
+    b.onclick=()=>{modeId=m.id; try{localStorage.setItem('pinit-mode',m.id)}catch{}; renderModes()};
+    list.appendChild(b);
+  }
+  $('modePicker').classList.toggle('hidden',modes.length<2);
+}
 
 /* ---------------- Leaderboard (live) ---------------- */
 async function loadBoard(){
@@ -166,8 +203,9 @@ async function startGame(){
   $('playBtn').disabled=true; $('againBtn').disabled=true;
   try{
     if(name!==savedName){ const {error}=await sb.rpc('set_player_name',{p_name:name}); if(error) throw error; savedName=name }
-    const {data,error}=await sb.rpc('start_game'); if(error) throw error;
-    game={id:data.game_id, n:data.total_rounds, i:0, total:0, results:[], guess:null, locked:true};
+    const {data,error}=await sb.rpc('start_game',{p_mode:modeId}); if(error) throw error;
+    game={id:data.game_id, n:data.total_rounds, i:0, total:0, results:[], guess:null, locked:true,
+          flash:data.flash_ms, mult:data.mult, label:data.label};
   }catch(e){ toast(errMsg(e)); $('playBtn').disabled=false; $('againBtn').disabled=false; return }
   $('playBtn').disabled=false; $('againBtn').disabled=false;
   show('play'); $('final').classList.add('hidden');
@@ -188,7 +226,7 @@ async function loadRound(){
   const shot=$('shotImg'); shot.classList.add('gone'); shot.removeAttribute('src');
   $('guesser').classList.add('away'); $('guesser').classList.remove('pinned','open');
   $('timerChip').classList.add('hidden');
-  $('roundChip').innerHTML=`Round ${game.i+1} <span>/ ${game.n}</span>`;
+  $('roundChip').innerHTML=`Round ${game.i+1} <span>/ ${game.n} · ${game.label} ${xLabel(game.mult)}</span>`;
   $('scoreChip').innerHTML=`${fmt(game.total)} <span>pts</span>`;
   $('guessBtn').disabled=true; $('guessBtn').textContent='Place a pin on the map';
   guessMap.setImage(pub(settings.map_path),settings.map_w,settings.map_h);
@@ -205,7 +243,7 @@ async function loadRound(){
   if(token!==roundToken) return;
   $('cue').classList.add('hidden');
   shot.src=pre.src; shot.classList.remove('gone');
-  await sleep(Math.min(950,settings.flash_ms||750));
+  await sleep(game.flash);
   if(token!==roundToken) return;
   shot.classList.add('gone'); shot.removeAttribute('src');
   cue('','Where was that? Pin it on the map.');
@@ -255,7 +293,7 @@ async function submitGuess(timedOut){
   const actual=data.actual_x!=null?{x:data.actual_x,y:data.actual_y}:null;
   const missed=!game.guess||data.late;
   const px=(game.guess&&actual)?Math.hypot((game.guess.x-actual.x)*settings.map_w,(game.guess.y-actual.y)*settings.map_h):0;
-  const r={pts:data.points,d:data.d||0,px,missed,late:data.late,shot:game.shot};
+  const r={pts:data.points,base:data.base,d:data.d||0,px,missed,late:data.late,shot:game.shot};
   game.total=data.total; game.finished=data.finished; game.results.push(r);
 
   $('scoreChip').innerHTML=`${fmt(game.total)} <span>pts</span>`;
@@ -263,9 +301,14 @@ async function submitGuess(timedOut){
   $('roundPts').innerHTML=`${fmt(r.pts)}<small>pts</small>`;
   $('distText').textContent=!game.guess?'Time’s up. No pin placed.'
     : data.late?'Time ran out before your guess arrived.'
-    : (timedOut?'Time’s up. Your pin was locked in: ':'')+(r.pts===5000?'Spot on. Perfect score.':distLabel(r));
+    : (timedOut?'Time’s up. Your pin was locked in: ':'')+(r.base===5000?'Spot on. Perfect score.':distLabel(r));
+  if(!r.missed && game.mult!==1){
+    const n=document.createElement('span'); n.className='base-note';
+    n.textContent=`${fmt(r.base)} base × ${Number(game.mult)} ${game.label}`;
+    $('distText').appendChild(n);
+  }
   const fill=$('meterFill'); fill.style.width='0';
-  requestAnimationFrame(()=>requestAnimationFrame(()=>fill.style.width=(r.pts/50)+'%'));
+  requestAnimationFrame(()=>requestAnimationFrame(()=>fill.style.width=(r.base/50)+'%'));
   $('nextBtn').textContent=game.finished?'See final score':'Next round';
   resultMap.setImage(pub(settings.map_path),settings.map_w,settings.map_h);
   const pts=[];
@@ -283,11 +326,11 @@ $('homeBtn').onclick=quitGame;
 
 async function finishGame(){
   $('final').classList.remove('hidden');
-  $('finalPts').innerHTML=`${fmt(game.total)}<small>/ ${fmt(game.n*5000)}</small>`;
+  $('finalPts').innerHTML=`${fmt(game.total)}<small>/ ${fmt(game.n*5000*game.mult)} · ${game.label}</small>`;
   const ul=$('roundList'); ul.innerHTML='';
   game.results.forEach((r,i)=>{
     const li=document.createElement('li'), im=document.createElement('img'); im.src=r.shot; im.alt='';
-    const t=document.createElement('span'); t.textContent=`Round ${i+1}: ${r.missed?'no points':r.pts===5000?'perfect':distLabel(r)}`;
+    const t=document.createElement('span'); t.textContent=`Round ${i+1}: ${r.missed?'no points':r.base===5000?'perfect':distLabel(r)}`;
     const p=document.createElement('span'); p.className='pts'; p.textContent=fmt(r.pts);
     li.append(im,t,p); ul.appendChild(li);
   });
