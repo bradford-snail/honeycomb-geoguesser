@@ -289,6 +289,8 @@ async function loadRound(){
   guessMap.setMarkers([]); guessMap.setPickable(false);
 
   cue('','Loading…');
+  try{ await guessMap.img.decode() }catch{}
+  if(token!==roundToken) return;
   const {data,error}=await sb.rpc('begin_round',{p_game:game.id});
   if(token!==roundToken) return;
   if(error){ toast(errMsg(error)); quitGame(); return }
