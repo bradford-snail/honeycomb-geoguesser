@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../site/app.css?v=6">
+<link rel="stylesheet" href="../site/app.css?v=7">
 <link rel="stylesheet" href="admin.css">
 <style>
 .mode-row{display:grid; grid-template-columns:minmax(120px,1.4fr) minmax(90px,1fr) minmax(90px,1fr) auto; gap:10px; align-items:end; padding:10px 0; border-top:1px solid var(--line)}
@@ -174,6 +174,7 @@ async function loadSettings(){
   $('mapUploadLabel').textContent=has?'Replace map image':'Upload map image';
   $('removeMap').classList.toggle('hidden',!has);
   if(has){ $('mapThumb').src=pub(data.map_path); adminMap.setImage(pub(data.map_path),data.map_w,data.map_h); setTimeout(()=>adminMap._resize(),0) }
+    if(has&&!data.map_small_path) makePhoneMap();
 }
 $('saveSettings').onclick=async()=>{
   const {error}=await sb.from('settings').update({
@@ -198,9 +199,9 @@ $('mapFile').onchange=async e=>{
   if(settings.map_path&&locations.length&&!confirm('Existing pins keep the same relative positions. Only replace with the same map at a different resolution. Continue?')) return;
   try{
     toast('Uploading map…');
-    const {w,h}=await imgSize(f), path=await upload('maps',f), old=settings.map_path;
-    const {error}=await sb.from('settings').update({map_path:path,map_w:w,map_h:h}).eq('id',1); if(error) throw error;
-    if(old) sb.storage.from('pinit').remove([old]);
+    const {w,h}=await imgSize(f), path=await upload('maps',f), old=[settings.map_path,settings.map_small_path].filter(Boolean);
+    const {error}=await sb.from('settings').update({map_path:path,map_w:w,map_h:h,map_small_path:null,map_small_w:null,map_small_h:null}).eq('id',1); if(error) throw error;
+    if(old.length) sb.storage.from('pinit').remove(old);
     toast('Map saved'); loadSettings();
   }catch(err){ toast(errMsg(err)) }
 };
@@ -208,13 +209,36 @@ $('mapFile').onchange=async e=>{
 $('removeMap').onclick=async()=>{
   const n=locations.length;
   if(!confirm(n?`Remove the map? Your ${n} location${n===1?'':'s'} will stay saved, but the game can't be played until you upload a map again.`:'Remove the map?')) return;
-  const old=settings.map_path;
-  const {error}=await sb.from('settings').update({map_path:null,map_w:null,map_h:null}).eq('id',1);
+   const old=[settings.map_path,settings.map_small_path].filter(Boolean);
+  const {error}=await sb.from('settings').update({map_path:null,map_w:null,map_h:null,map_small_path:null,map_small_w:null,map_small_h:null}).eq('id',1);
   if(error){ toast(errMsg(error)); return }
-  if(old) sb.storage.from('pinit').remove([old]);
+  if(old.length) sb.storage.from('pinit').remove(old);
   toast('Map removed'); loadSettings();
 };
 
+/* ---------- Phone-sized map (made automatically) ---------- */
+let makingPhoneMap=false;
+async function makePhoneMap(){
+  if(makingPhoneMap||!settings.map_path) return; makingPhoneMap=true;
+  try{
+    toast('Creating a phone-sized copy of the map…');
+    const img=new Image(); img.crossOrigin='anonymous'; img.src=pub(settings.map_path)+'?cors=1';
+    await img.decode();
+    const MAX=3000, k=Math.min(1,MAX/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.round(img.naturalWidth*k), h=Math.round(img.naturalHeight*k);
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const ctx=c.getContext('2d'); ctx.imageSmoothingQuality='high'; ctx.drawImage(img,0,0,w,h);
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
+    const path=`maps/${crypto.randomUUID()}-phone.jpg`;
+    const {error:upErr}=await sb.storage.from('pinit').upload(path,blob,{contentType:'image/jpeg',cacheControl:'31536000',upsert:false});
+    if(upErr) throw upErr;
+    const {error}=await sb.from('settings').update({map_small_path:path,map_small_w:w,map_small_h:h}).eq('id',1);
+    if(error) throw error;
+    settings.map_small_path=path; settings.map_small_w=w; settings.map_small_h=h;
+    toast(`Phone map ready (${w} × ${h})`);
+  }catch(e){ console.error(e); toast('Couldn’t create the phone map: '+errMsg(e)) }
+  makingPhoneMap=false;
+}
 /* ---------- Screenshot speeds ---------- */
 let modes=[];
 function renderModes(){
