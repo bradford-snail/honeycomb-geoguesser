@@ -274,7 +274,7 @@ async function loadRound(){
   await sleep(game.flash);
   if(token!==roundToken) return;
   shot.classList.add('gone'); shot.removeAttribute('src');
-  cue('','Where was that? Pin it on the map.');
+  $('cue').classList.add('hidden');
 
   game.locked=false; guessMap.setPickable(true);
   const g=$('guesser'); g.classList.remove('away'); g.classList.add('pinned','open');
