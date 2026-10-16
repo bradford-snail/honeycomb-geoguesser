@@ -22,6 +22,8 @@
 .lb-tabs{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px}
 .lb-tab{appearance:none; border:1.5px solid var(--line); background:transparent; color:var(--muted); border-radius:999px; padding:.25em .8em; font:inherit; font-size:.85rem; font-weight:500; cursor:pointer}
 .lb-tab[aria-selected="true"]{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+.board li.outside{grid-template-columns:auto 1fr auto; border-top:1px dashed var(--line); margin-top:.4em; padding-top:.7em}
+.board li.outside::before{content:attr(data-rank)}
 </style>
 </head>
 <body>
@@ -46,7 +48,7 @@
       <p class="status" id="homeStatus">Connecting…</p>
     </div>
     <section class="board" aria-labelledby="lbTitle">
-      <h2 id="lbTitle">Leaderboard</h2>
+      <h2 id="lbTitle">Top 20 Leaderboard</h2>
       <div class="lb-tabs" role="tablist" aria-label="Leaderboard"></div>
       <ol class="lb"></ol>
       <p class="empty lb-empty">No scores yet. Be the first.</p>
@@ -97,7 +99,7 @@
           </div>
         </div>
         <section class="board" aria-label="Leaderboard">
-          <h2>Leaderboard</h2>
+          <h2>Top 20 Leaderboard</h2>
           <div class="lb-tabs" role="tablist" aria-label="Leaderboard"></div>
           <ol class="lb"></ol>
           <p class="empty lb-empty">No scores yet.</p>
@@ -194,7 +196,7 @@ function renderTabs(){
 }
 async function loadBoard(){
   renderTabs();
-  const tab=boardTab; let data, error;
+  const tab=boardTab, seq=loadBoard.seq=(loadBoard.seq||0)+1; let data, error;
   if(tab==='overall'){
     ({data,error}=await sb.from('players').select('id,name,best').gt('best',0).order('best',{ascending:false}).limit(20));
   } else {
@@ -213,6 +215,24 @@ async function loadBoard(){
     }
   });
   document.querySelectorAll('.lb-empty').forEach(e=>e.classList.toggle('hidden',board.length>0));
+  
+  // Player's own position when they're outside the top 20
+  if(!uid||board.some(p=>p.id===uid)) return;
+  const mineQ=tab==='overall'
+    ? sb.from('players').select('best').eq('id',uid).maybeSingle()
+    : sb.from('player_mode_stats').select('best').eq('player_id',uid).eq('mode',tab).maybeSingle();
+  const {data:mine}=await mineQ;
+  if(!mine||!(mine.best>0)||seq!==loadBoard.seq) return;
+  const {count}=tab==='overall'
+    ? await sb.from('players').select('id',{count:'exact',head:true}).gt('best',mine.best)
+    : await sb.from('player_mode_stats').select('player_id',{count:'exact',head:true}).eq('mode',tab).gt('best',mine.best);
+  if(seq!==loadBoard.seq) return;
+  document.querySelectorAll('.lb').forEach(ol=>{
+    const li=document.createElement('li'); li.className='me outside'; li.dataset.rank=(count||0)+1;
+    const w=document.createElement('span'); w.className='who'; w.textContent=(savedName||'You')+' (you)';
+    const n=document.createElement('span'); n.className='pts'; n.textContent=fmt(mine.best);
+    li.append(w,n); ol.appendChild(li);
+  });
 }
 
 /* ---------------- Game ---------------- */
