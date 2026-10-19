@@ -29,6 +29,8 @@
 .sr-only{position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
 body::before{content:""; position:fixed; inset:0; z-index:-1;
   background:linear-gradient(rgba(81,101,134,.72), rgba(81,101,134,.72)), url("bg.jpg?v=1") center/cover no-repeat, var(--bg)}
+   .legal{font-size:.85rem; color:var(--muted); margin:.9em 0 0}
+   .legal a{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -51,6 +53,7 @@ body::before{content:""; position:fixed; inset:0; z-index:-1;
       <div class="actions">
         <button class="btn" id="playBtn" disabled>Play</button>
       </div>
+      <p class="legal">By playing, you agree to our <a href="terms.html">Terms</a> and <a href="privacy.html">Privacy Policy</a>.</p>
       <p class="status" id="homeStatus">Connecting…</p>
     </div>
     <section class="board" aria-labelledby="lbTitle">
