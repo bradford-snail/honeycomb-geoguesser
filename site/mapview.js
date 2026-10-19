@@ -30,7 +30,7 @@ class MapView{
   setPickable(v){this.pickable=v; this.el.classList.toggle('pick',v)}
   setMarkers(m,line){this.markers=m; this.line=line||null; this._render()}
   _size(){this.cw=this.el.clientWidth; this.ch=this.el.clientHeight; this.min=Math.min(this.cw/this.W,this.ch/this.H)||1}
-  fit(){this._size(); this.s=this.min; this._clamp(); this._render()}
+  fit(){this._size(); this.s=this.cover?Math.max(this.cw/this.W,this.ch/this.H):this.min; this._clamp(); this._render()}
   fitTo(pts,pad=80){
     this._size(); if(!pts.length) return this.fit();
     const xs=pts.map(p=>p.x*this.W), ys=pts.map(p=>p.y*this.H);
