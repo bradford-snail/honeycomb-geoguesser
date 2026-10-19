@@ -84,13 +84,13 @@ img{max-width:100%}
 .guesser.away{visibility:hidden}
 .quit{background:rgba(39,53,67,.82); color:#fff; border:0; border-radius:999px; padding:.4em 1em; cursor:pointer; font-weight:500}
 
-.guesser{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; flex-direction:column; gap:10px; align-items:stretch; width:min(900px, calc(100vw - 32px)); z-index:3}
-.guesser .mv{width:100%; height:min(600px, calc(100vh - 220px)); border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.guesser{position:absolute; left:50%; top:calc(50% + 28px); transform:translate(-50%,-50%); display:flex; flex-direction:column; gap:10px; align-items:stretch; width:auto; z-index:3}
+.guesser .mv{height:calc(100vh - 190px); height:calc(100dvh - 190px); width:auto; aspect-ratio:var(--map-ar, 4 / 3); max-width:calc(100vw - 32px); border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,.5)}
 .guess-btn{width:100%; padding:.85em; font-size:1.05rem; background:var(--pin); color:#273543}
 .map-toggle{display:none}
 @media (hover:none), (pointer:coarse){
   .guesser{left:12px; right:12px; width:auto; top:auto; transform:none; bottom:calc(12px + env(safe-area-inset-bottom,0px))}
-  .guesser .mv{display:none; height:min(460px, calc(100vh - 230px)); height:min(460px, calc(100dvh - 230px)); opacity:1}
+  .guesser .mv{display:none; width:100%; max-width:none; aspect-ratio:auto; height:calc(100vh - 230px); height:calc(100dvh - 230px); opacity:1}
   .hud{z-index:4; padding:10px 12px; gap:8px}
   .hud .chip, .hud .quit{white-space:nowrap}
   .hud .chip span{font-size:.8em}
