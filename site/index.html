@@ -159,7 +159,6 @@ const errMsg=e=>(e&&e.message)||'Something went wrong. Try again.';
   const title=settings?.title||'Honeycomb Geoguesser'; $('gameTitle').textContent=title; document.title=title;
   modes=Array.isArray(settings?.modes)?[...settings.modes].sort((a,b)=>a.ms-b.ms):[];
   renderModes();
-  if(modes.length>1&&modeId) boardTab=modeId;
   const ready=settings&&settings.map_path&&count>0&&modes.length>0;
   $('playBtn').disabled=!ready;
   if(settings?.map_path){ const pre=new Image(); pre.src=mapImg().url; }
@@ -188,7 +187,7 @@ function renderModes(){
     const d=document.createElement('span'); d.textContent=secs(m.ms)+' · ';
     const x=document.createElement('span'); x.className='x'; x.style.display='inline'; x.textContent=xLabel(m.mult)+' points';
     d.appendChild(x); b.append(t,d);
-    b.onclick=()=>{modeId=m.id; try{localStorage.setItem('pinit-mode',m.id)}catch{}; renderModes(); boardTab=m.id; loadBoard()};
+    b.onclick=()=>{modeId=m.id; try{localStorage.setItem('pinit-mode',m.id)}catch{}; renderModes()};
     list.appendChild(b);
   }
   $('modePicker').classList.toggle('hidden',modes.length<2);
@@ -401,7 +400,6 @@ async function finishGame(){
   });
   $('rankText').textContent=''; $('finalNote').textContent='';
   const mode=game.mode;
-  if(modes.length>1&&mode) boardTab=mode;
   loadBoard();
   const [{data:me},{data:mine}]=await Promise.all([
     sb.from('players').select('best').eq('id',uid).single(),
